@@ -364,7 +364,7 @@ with tab1:
             gt_opacity=gt_opacity,
             title=f"{selected_object} — Ground Truth Only",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         with st.spinner("🔄 Running Poisson reconstruction..."):
             recon_mesh, implicit_field, grid_info = cached_poisson(
@@ -402,7 +402,7 @@ with tab1:
             show_contacts=show_contacts,
             title=f"{selected_object} — {selected_strategy} | GT + Poisson",
         )
-        st.plotly_chart(fig, use_container_width=True, key="mesh_comparison")
+        st.plotly_chart(fig, width="stretch", key="mesh_comparison")
 
         # Info
         if recon_mesh is not None and grid_info is not None:
@@ -536,7 +536,7 @@ with tab2:
                 pred_opacity=voxel_opacity_pred,
                 title=f"{selected_object} — Voxel Overlay (128³, 20cm)",
             )
-            st.plotly_chart(fig, use_container_width=True, key="voxel_overlay")
+            st.plotly_chart(fig, width="stretch", key="voxel_overlay")
         else:
             col_a, col_b = st.columns(2)
             with col_a:
@@ -546,7 +546,7 @@ with tab2:
                     gt_opacity=voxel_opacity_gt,
                     title="GT Voxels",
                 )
-                st.plotly_chart(fig_gt, use_container_width=True, key="voxel_gt")
+                st.plotly_chart(fig_gt, width="stretch", key="voxel_gt")
             with col_b:
                 st.markdown("**Poisson SDF Voxels**")
                 fig_pred = build_voxel_comparison_figure(
@@ -554,7 +554,7 @@ with tab2:
                     pred_opacity=voxel_opacity_pred,
                     title="Poisson SDF Voxels",
                 )
-                st.plotly_chart(fig_pred, use_container_width=True, key="voxel_pred")
+                st.plotly_chart(fig_pred, width="stretch", key="voxel_pred")
 
         # Voxel counts
         if metrics is not None:
@@ -627,7 +627,7 @@ with tab3:
                 implicit_field, axis=axis_idx, slice_idx=slice_idx,
                 title=f"Poisson SDF — {selected_object} [{selected_strategy}]"
             )
-            st.plotly_chart(fig_sdf, use_container_width=True, key="sdf_slice")
+            st.plotly_chart(fig_sdf, width="stretch", key="sdf_slice")
 
             # Field statistics
             with st.expander("📈 Field Statistics"):

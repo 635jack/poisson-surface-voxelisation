@@ -24,8 +24,7 @@ def voxelize_ground_truth(
     """
     Voxelize a ground truth mesh into a fixed 20×20×20 cm cube at 128³.
 
-    The mesh is assumed to be centered at origin. We create a uniform grid
-    centered at origin and check occupancy.
+    Uses trimesh's built-in voxelization then resamples onto the fixed grid.
 
     Args:
         mesh: trimesh object (centered at origin)
@@ -45,20 +44,25 @@ def voxelize_ground_truth(
     gx, gy, gz = np.meshgrid(lin, lin, lin, indexing='ij')
     grid_centers = np.stack([gx, gy, gz], axis=-1)  # (128,128,128,3)
 
-    # Flatten to query points
+    # Use trimesh's built-in voxelization (does not require rtree)
+    vg = mesh.voxelized(pitch=pitch)
+    vg_filled = vg.fill()  # fill interior
+
+    # Get occupied voxel centers from trimesh's grid
+    trimesh_points = vg_filled.points  # (K, 3) — centers of occupied voxels
+
+    # Map trimesh voxel points onto our fixed grid
+    occupancy = np.zeros((resolution, resolution, resolution), dtype=bool)
+
+    if len(trimesh_points) > 0:
+        # Convert world coords to grid indices
+        indices = ((trimesh_points + half) / cube_size * resolution).astype(int)
+        # Clip to valid range
+        indices = np.clip(indices, 0, resolution - 1)
+        occupancy[indices[:, 0], indices[:, 1], indices[:, 2]] = True
+
     query_points = grid_centers.reshape(-1, 3)
-
-    # Check which points are inside the mesh
-    try:
-        inside = mesh.contains(query_points)
-    except Exception:
-        # Fallback: use proximity-based check
-        closest, _, _ = trimesh.proximity.closest_point(mesh, query_points)
-        dists = np.linalg.norm(query_points - closest, axis=1)
-        inside = dists < pitch
-
-    occupancy = inside.reshape(resolution, resolution, resolution)
-    occupied_points = query_points[inside]
+    occupied_points = query_points[occupancy.ravel()]
 
     return occupancy, grid_centers, occupied_points
 
