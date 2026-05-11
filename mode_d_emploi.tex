@@ -1,0 +1,103 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{graphicx}
+
+\definecolor{codegray}{gray}{0.95}
+\lstset{
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single
+}
+
+\title{Rapport Technique Exhaustif : Mesh Comparison Viewer}
+\author{Système d'analyse Antigravity}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Introduction et Contexte}
+Ce projet a été mis en place pour pallier le besoin de valider quantitativement et qualitativement les reconstructions de surfaces d'objets manipulés à partir de données de contact discrètes (issues du dataset \textit{grasp-dataset-gen}). 
+
+L'application fournit un pipeline de calcul en temps réel combinant la reconstruction implicite par transformée de Fourier, la voxélisation unifiée (grille standardisée), ainsi que l'extraction de métriques volumiques.
+
+\section{Architecture Logicielle}
+L'environnement a été conçu de façon modulaire pour séparer le chargement, le calcul algorithmique pur, et la couche de rendu graphique.
+
+\subsection{Organisation des sous-modules (\texttt{core/})}
+\begin{itemize}
+    \item \textbf{\texttt{data\_loader.py}} :
+        Il s'interface avec le système de fichiers du générateur de dataset. Il normalise automatiquement les modèles 3D (centrage sur le centroïde et mise à l'échelle à un rayon unifié de 8cm) pour assurer la robustesse des étapes de voxélisation suivantes.
+    \item \textbf{\texttt{poisson.py}} :
+        Implémente le solveur FFT. Il encapsule la transformation des points spatiaux en coordonnées de grille, le calcul de la divergence vectorielle $\nabla \cdot \vec{V}$ par gradients finis Numpy, la résolution matricielle fréquentielle, et l'isosurfaçage final via \textit{skimage.measure.marching\_cubes}.
+    \item \textbf{\texttt{voxelizer.py}} :
+        Ce module opère sur une grille discrète immuable : un cube virtuel de $20$ cm centrée en $(0,0,0)$ découpée en $128 \times 128 \times 128$ sous-cubes (pitch $\approx 1.56$ mm). Il traite à la fois la conversion booléenne de maillage watertight et le ré-échantillonnage par interpolation trilinéaire (\texttt{RegularGridInterpolator}) des champs scalaires implicites.
+    \item \textbf{\texttt{visualization.py}} :
+        Convertit les structures de données complexes (Trimesh, tableaux Numpy 3D) en traces \textit{Plotly}. Il gère l'habillage "Premium Dark" : shaders pour les maillages, scatter volumique optimisé pour les nuages de voxels, et cartographie de chaleur (\textit{heatmap}) interactives pour les coupes 2D.
+\end{itemize}
+
+\section{Procédés Algorithmiques en Profondeur}
+
+\subsection{Reconstruction par Screened Poisson (Approximation FFT)}
+L'objectif est de trouver la fonction indicatrice $\chi$ d'une surface fermée dont le gradient matche au mieux le champ vectoriel des normales $V$ donné par les points de contact.
+L'approche par FFT suit ces étapes rigoureuses :
+\begin{enumerate}
+    \item \textbf{Convolution Spatiale} : Chaque point de contact $p_i$ et sa normale $\vec{n}_i$ sont "projetés" sur une grille régulière $N \times N \times N$. La contribution à une cellule $x_{ijk}$ suit une Gaussienne : $W(d) = \exp(-d^2 / 2\sigma^2)$.
+    \item \textbf{Passage au Champ Scalaire} : On calcule la divergence du champ obtenu : $f = \nabla \cdot \vec{V}$.
+    \item \textbf{Résolution dans le Domaine Fréquentiel} : Dans l'espace de Fourier, l'équation de Poisson $\Delta\chi = f$ devient algébrique : 
+    $ \mathcal{F}(\chi)(\vec{k}) = \frac{\mathcal{F}(f)(\vec{k})}{- \|\vec{k}\|^2} $
+    On applique la transformée inverse $\mathcal{F}^{-1}$ pour récupérer $\chi$ dans l'espace réel.
+    \item \textbf{Seuillage d'Iso-surface} : La valeur $\chi$ est échantillonnée aux coordonnées exactes des points de contact initiaux. La moyenne arithmétique de ces valeurs sert de "niveau zéro" (isovaleur) pour reconstruire le maillage via les Cubes Marchants.
+\end{enumerate}
+
+\subsection{Unification de la Grille de Voxelisation}
+Pour comparer le Maillage de Référence (Ground Truth) et le champ SDF continu généré par Poisson, nous forçons les deux entités dans le même espace tensoriel booléen.
+\begin{itemize}
+    \item \textbf{Traitement GT} : La surface est transformée en sous-grille via l'algorithme de scan-conversion de \texttt{trimesh}, puis un algorithme de \textit{Flood Fill} 3D scelle le volume intérieur.
+    \item \textbf{Traitement SDF} : Le cube standard query la valeur interpolée de $\chi$ à chaque centre de voxel. Si $\chi(x,y,z) \geq \text{Isovaleur} + \text{Offset}$, le voxel est déclaré "intérieur" (Occupancy=True).
+\end{itemize}
+
+\section{Analyse des Paramètres et Sensibilité}
+
+\begin{tcolorbox}[colback=gray!5!white,colframe=gray!75!black,title=Comportement des leviers de réglage]
+\begin{itemize}
+    \item \textbf{Poisson Resolution} : Contrôle le pas d'échantillonnage de la FFT. \textit{Conséquence} : Une valeur basse lisse le modèle et comble artificiellement les trous entre les doigts. Une valeur haute peut provoquer du "bruit" si les points de contact sont trop espacés.
+    \item \textbf{Sigma Factor} : Contrôle la largeur du noyau Gaussien. \textit{Conséquence} : Si $\sigma$ est faible, la normale n'influence que sa cellule immédiate (reconstruction pointue et locale). S'il est élevé, la normale influence un large voisinage (effet blob global).
+    \item \textbf{SDF Threshold Offset} : Modifie le biais de la classification. \textit{Conséquence} : Réduit ou augmente mathématiquement le rayon volumique de l'objet généré, ce qui permet d'affiner manuellement la "coque" de saisie si l'isosurfaçage moyen a sous-estimé la pénétration.
+\end{itemize}
+\end{tcolorbox}
+
+\section{Moteur de Métriques et Interprétation}
+
+L'outil calcule une matrice de confusion voxel-à-voxel où Vrai Positif (VP) = les deux versions s'accordent sur l'occupation.
+
+\begin{enumerate}
+    \item \textbf{IoU (Intersection over Union) / Jaccard Index} :
+    \[ \text{IoU} = \frac{|GT \cap P|}{|GT \cup P|} \]
+    Mesure absolue de chevauchement. Varie entre 0 (aucune intersection) et 1 (identique). C'est le standard le plus sévère car il pénalise les débordements.
+    \item \textbf{Dice Coefficient (F1-Score 3D)} :
+    \[ \text{Dice} = \frac{2 \cdot |GT \cap P|}{|GT| + |P|} \]
+    Donne plus de poids à l'intersection. Idéal pour visualiser si la masse globale du volume est capturée.
+    \item \textbf{Precision vs Recall} :
+    \begin{itemize}
+        \item \textbf{Precision} = $VP / P$. Si elle est faible, l'algorithme de Poisson a "inventé" du volume qui n'existe pas en vrai.
+        \item \textbf{Recall} = $VP / GT$. Si il est faible, cela signifie que la reconstruction a manqué des parties entières de l'objet réel (dû au manque de points de contact sur ces zones).
+    \end{itemize}
+\end{enumerate}
+
+\end{document}
