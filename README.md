@@ -30,6 +30,6 @@ streamlit run app.py -- --data-dir ../grasp-dataset-gen
 
 ## Data Format
 
-Expects data from the `grasp-dataset-gen` pipeline:
+Expects data from the [grasp-dataset-gen](https://github.com/635jack/grasp-dataset-gen) pipeline:
 - GLB meshes in `data/glb/`
 - Contact JSON files in `output/<object>/grasp_<strategy>.json`
