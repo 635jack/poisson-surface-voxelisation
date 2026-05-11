@@ -2,6 +2,10 @@
 
 Interactive Streamlit app for comparing **ground truth 3D meshes** with **Screened Poisson Surface Reconstructions**, including voxelized SDF comparison.
 
+## 📺 Video Demo
+
+[Watch the demonstration video here](https://youtu.be/TbDWMjjH8l0)
+
 ## Features
 
 - 🔍 **3D Mesh Comparison**: Side-by-side view of ground truth mesh vs Poisson reconstruction
