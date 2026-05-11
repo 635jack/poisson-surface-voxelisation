@@ -308,8 +308,8 @@ def cached_poisson(positions_bytes, normals_bytes, resolution, padding, sigma):
     return poisson_reconstruct(positions, normals, resolution, padding, sigma)
 
 @st.cache_data
-def cached_voxelize_gt(_mesh_vertices, _mesh_faces):
-    """Cache GT voxelization. We pass vertices/faces as hashable inputs."""
+def cached_voxelize_gt(object_name, _mesh_vertices, _mesh_faces):
+    """Cache GT voxelization using object_name as hash key."""
     mesh = __import__('trimesh').Trimesh(
         vertices=np.frombuffer(_mesh_vertices, dtype=np.float64).reshape(-1, 3),
         faces=np.frombuffer(_mesh_faces, dtype=np.int64).reshape(-1, 3),
@@ -435,7 +435,7 @@ with tab2:
             gt_verts_bytes = gt_mesh.vertices.astype(np.float64).tobytes()
             gt_faces_bytes = gt_mesh.faces.astype(np.int64).tobytes()
             gt_occupancy, gt_grid, gt_vox_points = cached_voxelize_gt(
-                gt_verts_bytes, gt_faces_bytes
+                selected_object, gt_verts_bytes, gt_faces_bytes
             )
 
         # Poisson SDF voxelization

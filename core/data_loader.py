@@ -24,17 +24,11 @@ def load_trimesh_glb(glb_path: str) -> Optional[trimesh.Trimesh]:
         mesh = scene
     if mesh is None:
         return None
-
-    # Align strictly with grasp_dataset_gen/utils.py:normalize_mesh
-    # to avoid scale/dimension misalignment between contacts and GT.
-    verts = mesh.vertices.copy()
-    verts -= verts.mean(axis=0)
-    scale = np.max(np.linalg.norm(verts, axis=1))
-    if scale > 1e-8:
-        verts = verts / scale * 0.08
-    
-    # Return the perfectly aligned mesh
-    return trimesh.Trimesh(vertices=verts, faces=mesh.faces.copy(), process=False)
+    # Center at origin and normalize
+    mesh.apply_translation(-mesh.centroid)
+    scale = 0.08 / mesh.bounding_box.extents.max()
+    mesh.apply_scale(scale)
+    return mesh
 
 
 def load_contacts(contacts_path: str) -> dict:
