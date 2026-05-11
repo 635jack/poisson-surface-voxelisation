@@ -245,6 +245,21 @@ with st.sidebar:
         st.warning("No contact data available for this object")
 
     st.markdown("---")
+    st.markdown("### 🎨 Display Options")
+
+    gt_opacity = st.slider("GT Mesh Opacity", 0.05, 1.0, 0.30, 0.05)
+    recon_opacity = st.slider("Reconstruction Opacity", 0.05, 1.0, 0.55, 0.05)
+    show_contacts = st.checkbox("Show Contact Points", value=True)
+    voxel_opacity_gt = st.slider("GT Voxel Opacity", 0.05, 1.0, 0.25, 0.05)
+    voxel_opacity_pred = st.slider("Poisson Voxel Opacity", 0.05, 1.0, 0.40, 0.05)
+
+    sdf_threshold = st.slider(
+        "SDF Threshold Offset",
+        min_value=-0.5, max_value=0.5, value=0.0, step=0.01,
+        help="Offset from isovalue for voxel thresholding"
+    )
+
+    st.markdown("---")
     st.markdown("### 🔧 Poisson Parameters")
 
     poisson_resolution = st.slider(
@@ -263,21 +278,6 @@ with st.sidebar:
         "Sigma Factor",
         min_value=2.0, max_value=8.0, value=4.0, step=0.5,
         help="Gaussian kernel spread (lower = tighter, more local)"
-    )
-
-    st.markdown("---")
-    st.markdown("### 🎨 Display Options")
-
-    gt_opacity = st.slider("GT Mesh Opacity", 0.05, 1.0, 0.30, 0.05)
-    recon_opacity = st.slider("Reconstruction Opacity", 0.05, 1.0, 0.55, 0.05)
-    show_contacts = st.checkbox("Show Contact Points", value=True)
-    voxel_opacity_gt = st.slider("GT Voxel Opacity", 0.05, 1.0, 0.25, 0.05)
-    voxel_opacity_pred = st.slider("Poisson Voxel Opacity", 0.05, 1.0, 0.40, 0.05)
-
-    sdf_threshold = st.slider(
-        "SDF Threshold Offset",
-        min_value=-0.5, max_value=0.5, value=0.0, step=0.01,
-        help="Offset from isovalue for voxel thresholding"
     )
 
     st.markdown("---")
@@ -404,32 +404,7 @@ with tab1:
         )
         st.plotly_chart(fig, width="stretch", key="mesh_comparison")
 
-        # Info
-        if recon_mesh is not None and grid_info is not None:
-            with st.expander("📐 Reconstruction Details"):
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <p class="metric-value">{grid_info.get('isovalue', 0):.4f}</p>
-                        <p class="metric-label">Isovalue</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with c2:
-                    ext = grid_info["extent"]
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <p class="metric-value">{ext[0]*1000:.1f}×{ext[1]*1000:.1f}×{ext[2]*1000:.1f}</p>
-                        <p class="metric-label">Extent (mm)</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with c3:
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <p class="metric-value">{poisson_resolution}³</p>
-                        <p class="metric-label">Grid Resolution</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
